@@ -1,10 +1,59 @@
+#!/usr/bin/perl
+
+# story2anki.pl
+# 
+#
+
+$fn = shift || die "Use filename when starting script.\n";
+
+$verbose = 0; #default to not verbose
+$nocheck = 0; #default to checking words with la simpla vortaro.
+
+### A list of words i was having trouble sparcing from the avortaro file
+$worddef{"a"} = "termination of adjectives";
+$worddef{"as"} = "ending of the present tense in verbs";
+$worddef{"e"} = "ending of adverbs";
+$worddef{"i"} = "termination of the infinitive in verbs";
+$worddef{"is"} = "ending of past tense in verbs";
+$worddef{"j"} = "sign of the plural";
+$worddef{"n"} = "ending of the objective; also marks direction";
+$worddef{"o"} = "ending of nouns (substantive)";
+$worddef{"os"} = "ending of future tense in verbs";
+$worddef{"u"} = "ending of the imperative in verbs";
+$worddef{"us"} = "ending of the conditional in verbs";
+$worddef{"ŝi"} = " she";
+$worddef{"tamen"} = " however, nevertheless";
+$worddef{"tia"} = " such, that kind of";
+$worddef{"tial"} = " therefore, for that reason";
+$worddef{"tiam"} = " then";
+$worddef{"tie"} = " there";
+$worddef{"tiel"} = " thus, so; in that way";
+$worddef{"ties"} = " that one's";
+$worddef{"tio"} = " that (thing)";
+$worddef{"tiom"} = " so much, that quantity";
+$worddef{"tiu"} = " that (one) (person or thing)";
+$worddef{"tra"} = " through (place)";
+$worddef{"trans"} = " across";
+$worddef{"tre"} = " very";
+$worddef{"tri"} = " three";
+$worddef{"tro"} = " too";
+$worddef{"tuj"} = " immediately";
+$worddef{"Turk"} = " [popolnomo] Turk";
+$worddef{"ul"} = " [sufikso] person noted for…";
+$worddef{"unu"} = " one";
+$worddef{"ve"} = " woe!";
+$worddef{"vi"} = " you";
+
+
+## Check the arguements on the command line
+foreach $option (@ARGV) {
+		$verbose = 1 if $option eq "--verbose";
+		$nocheck = 1 if $option eq "--nocheck";
+		}
 
 
 #open my local dictionary file
 # and put it into @voratro
-
-#verbose is used for troubleshooting.  Set to 1 for additional lines to be printed.
-$verbose = 0;
 
 open(FILE,"avortaro.txt") || die;
 
@@ -14,22 +63,43 @@ open(FILE,"avortaro.txt") || die;
 # search through the lines for @vortaro
 foreach $line (@vortaro) {
 
+    $flag = 0;
+	
+    print "# verbose--- checking $line";
     #checking to see if the line looks like: root/ definition <new line>
-	if ($line =~ /([a-zA-ZŝĝĉĵĥŭŜĜŬĴĤZĈ]+)\/([\s\w,]+)\n/) { 
+	if ($line =~ /([a-zA-ZŝĝĉĵĥŭŜĜŬĴĤZĈ]+)\/([\s\w,\(\)\;=\.\-\'\/]+)\n/) { 
 			# $1  is the root
 			# $2 is the definition/meaning
 			
 			$word = $1; $meaning = $2;  
-			print "verbose--- word:$word     definition:$meaning\n" if $verbose; 
+			print "# verbose--- word:$word     definition:$meaning\n" if $verbose; 
 			
 			#remove trailing white space
 			$meaning =~ s/\s+$//;
 
 			$worddef{$word} = $meaning;
+			$flag = 1;
+			
 			}
+			
+   #checking to see if the line looks like: root/ definition <new line>
+   #aĉ/ [sufikso] contemptible, wretched
+	if ($line =~ /([a-zA-ZŝĝĉĵĥŭŜĜŬĴĤZĈ\ -]+)\/ \[(sufikso|prefikso|finaĵo)\]([\s\w,-]+)\n/) { 
+			# $1  is the root
+			# $3 is the definition/meaning
+			
+			$word = $1; $meaning = $3;  
+			print "# verbose--- word:$word     definition:$meaning\n" if $verbose; 
+			
+			#remove trailing white space
+			$meaning =~ s/\s+$//;
+
+			$worddef{$word} = $meaning;
+			$flag = 1;
+			}
+			
+			print "#*** no match *** $line" if $flag == 0;
 }
-
-
 
 
 foreach $line (sort keys %worddef) {
@@ -37,12 +107,10 @@ foreach $line (sort keys %worddef) {
 	print "verbose --- $line\\ - meaning $meaning\n" if $verbose;
 	}
 	
-# name of the store that will be inputed into the script
-$fn = "GerdaMalaperis.txt";
 
-	open(FILE,$fn) || die;
-    print "**************** Reading $fn\n";
-	@text = <FILE>;
+open(FILE,$fn) || die;
+print "# **************** Reading $fn\n";
+@text = <FILE>;
 	
 	foreach $line (@text) {
 		 print "verbose--- $line" if $verbose; 
@@ -80,7 +148,7 @@ $fn = "GerdaMalaperis.txt";
 				$wl{$word} = $wl{$word}.$x++.","; 
 				
 				#I store the text the word was found from in $wordline{$word}
-				$wordline{$word} = $line;
+				$wordline{$word} = $line if length($wordline{$word}) < 1;
 				
 				#Remove white space from the front and back of the text.
 			    $wordline{$word} =~ s/^\s+|\s+$//g;
@@ -141,7 +209,7 @@ $fn = "GerdaMalaperis.txt";
 					# $hold - definition of roots if available
 					
 					print "$word|".$count."|$brokeout|$wordline{$word}|$hold\n";
-					
+					print "#\n" if $verbose;
 				
 					
 					# Be kind and pause one second between each request to la simpla vortaro
