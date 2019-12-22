@@ -4,6 +4,7 @@
 # 
 #
 
+
 $fn = shift || die "Use filename when starting script.\n";
 
 $verbose = 0; #default to not verbose
@@ -43,6 +44,7 @@ $worddef{"ul"} = " [sufikso] person noted for…";
 $worddef{"unu"} = " one";
 $worddef{"ve"} = " woe!";
 $worddef{"vi"} = " you";
+$worddef{"ĉu"} = " Start of a question, whether";
 
 
 ## Check the arguements on the command line
@@ -56,9 +58,8 @@ foreach $option (@ARGV) {
 # and put it into @voratro
 
 open(FILE,"avortaro.txt") || die;
-
 @vortaro = <FILE>;
-
+close (FILE);
 
 # search through the lines for @vortaro
 foreach $line (@vortaro) {
@@ -106,12 +107,34 @@ foreach $line (sort keys %worddef) {
 	$meaning = $worddef{$line};
 	print "verbose --- $line\\ - meaning $meaning\n" if $verbose;
 	}
-	
+
+###
+### Read our database of words from La Simpla Vortaro
+###
+$lsv = "lasimplavortaro.txt";
+
+open (FILE, $lsv) || die;
+@lsv = <FILE>;
+close (FILE);
+
+foreach $line (@lsv) {
+
+			#remove trailing white space
+			$line =~ s/\s+$//;
+			
+			($word, $brokenword) = split /\|/,$line;
+			
+			$lsv{$word} = $brokenword;
+
+}
+
 
 open(FILE,$fn) || die;
-print "# **************** Reading $fn\n";
+print "\n# **************** Reading $fn\n";
 @text = <FILE>;
+close (FILE);
 	
+
 	foreach $line (@text) {
 		 print "verbose--- $line" if $verbose; 
 		
@@ -173,32 +196,17 @@ print "# **************** Reading $fn\n";
 			($count,@hold) = split /,/,$wl{$word};
 			
 			#lep is old code.... should always be true...
-			if ($count ne "lep") {
-			        #pull the web page from the simpla vortaro for the word.
-					$url = "http://www.simplavortaro.org/api/v1/trovi/$word";
-					my $page = `wget -q -O - "$url"`; 
-
-					#find the place on the page where the word is broken out and save it
-					$page =~ /\"rezulto\":\s\"(\S*)\"/i;
-					$brokeout = $1;
-
-					#web pages mangle the special characters.  change them back.
-					$brokeout =~ s/\\u0109/ĉ/;
-					$brokeout =~ s/\\u015d/ŝ/;
-					$brokeout =~ s/\\u0125/ĥ/;
-					$brokeout =~ s/\\u011d/ĝ/;
-					$brokeout =~ s/\\u016d/ŭ/;
-					$brokeout =~ s/\\u0135/ĵ/;
+			if ($nocheck  == 0) {
+			        
+					$brokeout = ElRompo($word);
 					
-					#see if we can find the definition of our roots that are broken out...
-					(@bo) = split/-/,$brokeout;
+					$signifoj = RompoSignifo($brokeout);
+					} else {
 					
-					$hold = "";
+					$brokeout = "";
+					$signifoj = "";
 					
-					foreach $part (@bo) {
-							#put the different root definitions into $hold
-							if (length ($worddef{$part})) { $hold = $hold ."$part - $worddef{$part}<br>";} 
-							}
+					}
 					
 					
 					#print out our line for the csv file.  Using pipe as the delimiter
@@ -208,14 +216,12 @@ print "# **************** Reading $fn\n";
 					# $wordline{$word} - The line of the story where the word came from
 					# $hold - definition of roots if available
 					
-					print "$word|".$count."|$brokeout|$wordline{$word}|$hold\n";
+					print "$word|".$count."|$brokeout|$wordline{$word}|$signifoj\n";
 					print "#\n" if $verbose;
 				
 					
-					# Be kind and pause one second between each request to la simpla vortaro
 					
-					sleep(1);
-					}
+					
 			}
 
 # I usually type perl getwords3.pl >> filename.csv to execute and save output
@@ -225,6 +231,59 @@ print "# **************** Reading $fn\n";
 # you may need to create a card type in ANKI that will support the number of fields that we are using.
 # the first column should be the word... if the first field is a dupe in anki in any deck... it will ignore it.
 
-			
+sub RompoSignifo {
+		my $brokeout = shift;
 		
- 
+		
+		
+					(@bo) = split/-/,$brokeout;
+					
+					$hold = "";
+					
+					foreach $part (@bo) {
+							#put the different root definitions into $hold
+							if (length ($worddef{$part})) { $hold = $hold ."$part - $worddef{$part}<br>";} 
+							}
+							
+			        return $hold;
+		}
+
+			
+sub ElRompo {
+			my $word = shift;
+			
+			## Return what was in the db if we have it.
+			print "***** $lsv{$word}\n" if length($lsv{$word})>0;
+			return $lsv{$word} if length($lsv{$word})>0;
+			
+			
+			#Looks like we have to query the web...
+			
+					my $url = "http://www.simplavortaro.org/api/v1/trovi/$word";
+					my $page = `wget -q -O - "$url"`; 
+
+					# Be kind and pause one second between each request to la simpla vortaro
+					sleep (1);
+
+					#find the place on the page where the word is broken out and save it
+					$page =~ /\"rezulto\":\s\"(\S*)\"/i;
+					my $brokeout = $1;
+
+					#web pages mangle the special characters.  change them back.
+					$brokeout =~ s/\\u0109/ĉ/;
+					$brokeout =~ s/\\u015d/ŝ/;
+					$brokeout =~ s/\\u0125/ĥ/;
+					$brokeout =~ s/\\u011d/ĝ/;
+					$brokeout =~ s/\\u016d/ŭ/;
+					$brokeout =~ s/\\u0135/ĵ/;
+					
+			$brokeout = "???" if length( $brokeout ) <1;
+			
+			open (FILE,">>",$lsv) || die;
+			print FILE "$word|$brokeout\n";
+			close (FILE);
+			
+			
+					return $brokeout;
+
+			}
