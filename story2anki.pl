@@ -66,7 +66,7 @@ foreach $line (@vortaro) {
 
     $flag = 0;
 	
-    print "# verbose--- checking $line";
+    print "# verbose--- checking $line" if $verbose;
     #checking to see if the line looks like: root/ definition <new line>
 	if ($line =~ /([a-zA-ZŝĝĉĵĥŭŜĜŬĴĤZĈ]+)\/([\s\w,\(\)\;=\.\-\'\/]+)\n/) { 
 			# $1  is the root
@@ -99,7 +99,7 @@ foreach $line (@vortaro) {
 			$flag = 1;
 			}
 			
-			print "#*** no match *** $line" if $flag == 0;
+			print "#*** no match *** $line" if $flag == 0 && $verbose;
 }
 
 
@@ -141,28 +141,14 @@ close (FILE);
 		## Take a look at one line of text from the story.  Split it up into multiple words.
 		## We are splitting the line by means of spaces . , ; ! " : ? " ( ) 
 				
-		@array = split(/\s+|\.|\;|\,|\!|\"|\:|\?|\;|\“|\(|\)/,$line);
+		@array = split(/\s+|\.|\;|\,|\!|\"|\:|\?|\;|\“|\(|\)[0-9]\*«»\”/,$line);
 		
 		## look through all the words that were in that one line...
 		
 		foreach $word (@array) {
+		
+		$word = cleanupword($word);
 				    
-			$word = lc $word; # make it lower case
-			$word = $1 if ($word =~ /(.*)jn\z/); # remove jn ending
-			$word = $1 if ($word =~ /(.*)j\z/); # remove j ending
-			$word = $1 if ($word =~ /(.*)n\z/); # remove n ending
-			$word = "$1i" if ($word =~ /(.*)as\z/); #change as ending to i
-			$word = "$1i" if ($word =~ /(.*)os\z/); #change os ending to i
-			$word = "$1i" if ($word =~ /(.*)is\z/); #change is ending to i
-			$word = "$1i" if ($word =~ /(.*)us\z/); #change us ending to i
-			$word = "$1i" if ($word =~ /(.*)u\z/); #change u ending to i
-			
-			$word =~ s/Ŝ/ŝ/; #make it lower case
-			$word =~ s/Ĝ/ĝ/; #make it lower case
-			$word =~ s/Ĉ/ĉ/; #make it lower case
-			$word =~ s/Ŭ/ŭ/; #make it lower case
-			$word =~ s/Ĥ/ĥ/; #make it lower case
-			$word =~ s/Ĵ/ĵ/; #make it lower case
 			
 
 			#every time a word is seen.  $x is incremented.  This helps to keep the words in order for anki
@@ -253,7 +239,7 @@ sub ElRompo {
 			my $word = shift;
 			
 			## Return what was in the db if we have it.
-			print "***** $lsv{$word}\n" if length($lsv{$word})>0;
+			##print "***** $lsv{$word}\n" if length($lsv{$word})>0;
 			return $lsv{$word} if length($lsv{$word})>0;
 			
 			
@@ -286,4 +272,31 @@ sub ElRompo {
 			
 					return $brokeout;
 
+			}
+
+sub cleanupword {
+	my $word = shift;
+	
+			$word = lc $word; # make it lower case
+	
+			$word =~ s/Ŝ/ŝ/; #make it lower case
+			$word =~ s/Ĝ/ĝ/; #make it lower case
+			$word =~ s/Ĉ/ĉ/; #make it lower case
+			$word =~ s/Ŭ/ŭ/; #make it lower case
+			$word =~ s/Ĥ/ĥ/; #make it lower case
+			$word =~ s/Ĵ/ĵ/; #make it lower case	
+			$word =~ s/[«»0123456789\$#@~!&*()\[\];.,:?^ `\\\/]+//g;
+			
+			return $word if length($worddef{$word});
+			
+			$word = $1 if ($word =~ /(.*)jn\z/); # remove jn ending
+			$word = $1 if ($word =~ /(.*)j\z/); # remove j ending
+			$word = $1 if ($word =~ /(.*)n\z/); # remove n ending
+			$word = "$1i" if ($word =~ /(.*)as\z/); #change as ending to i
+			$word = "$1i" if ($word =~ /(.*)os\z/); #change os ending to i
+			$word = "$1i" if ($word =~ /(.*)is\z/); #change is ending to i
+			$word = "$1i" if ($word =~ /(.*)us\z/); #change us ending to i
+			$word = "$1i" if ($word =~ /(.*)u\z/); #change u ending to i
+			
+			return $word;
 			}
